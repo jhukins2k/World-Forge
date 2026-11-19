@@ -1,6 +1,8 @@
-// World Forge — offline support. Serves the app from a local cache, refreshing it in the background.
-// Bump CACHE whenever any app file changes, so everyone gets the new version.
-const CACHE = 'world-forge-v0.2.0';
+// World Forge — offline support. Each version's files are saved together as one set, and the app is
+// always served from a complete set, so old and new files never mix. A new version arrives only when
+// this file changes: bump CACHE (and APP_VERSION in config.js) with every release.
+const CACHE = 'world-forge-v0.2.1';
+const FONTS = 'world-forge-fonts';
 const APP_FILES = [
   './',
   'index.html',
@@ -13,13 +15,15 @@ const APP_FILES = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(APP_FILES.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE)
+    .then(c => c.addAll(APP_FILES.map(u => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k.startsWith('world-forge-') && k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k.startsWith('world-forge-v') && k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -28,19 +32,23 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
-  if (url.origin !== self.location.origin && !isFont) return; // GitHub sync calls always go to the network
 
-  e.respondWith(caches.open(CACHE).then(async cache => {
-    const cached = await cache.match(req, { ignoreSearch: true });
-    const fresh = fetch(req).then(res => {
-      if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
-      return res;
-    }).catch(() => null);
-    if (cached) { e.waitUntil(fresh); return cached; }
-    const res = await fresh;
-    if (res) return res;
-    if (req.mode === 'navigate') return (await cache.match('index.html')) || Response.error();
-    return Response.error();
+  // Fonts: use the saved copy, refresh it quietly.
+  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    e.respondWith(caches.open(FONTS).then(async c => {
+      const hit = await c.match(req);
+      const net = fetch(req).then(r => { if (r && (r.ok || r.type === 'opaque')) c.put(req, r.clone()); return r; }).catch(() => null);
+      return hit || (await net) || Response.error();
+    }));
+    return;
+  }
+  if (url.origin !== self.location.origin) return; // GitHub sync calls always go to the network
+
+  // App files: only ever from this version's complete set (never refreshed one by one).
+  e.respondWith(caches.open(CACHE).then(async c => {
+    const hit = await c.match(req, { ignoreSearch: true });
+    if (hit) return hit;
+    if (req.mode === 'navigate') return (await c.match('index.html')) || fetch(req);
+    return fetch(req);
   }));
 });

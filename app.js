@@ -116,7 +116,7 @@ onSaved(() => { const s = $('#save-status'); if (s) s.textContent = 'Saved on th
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   const hadController = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
   // When a new version finishes installing, reload once so every file comes from the same version.
   let reloading = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
