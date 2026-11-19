@@ -1,8 +1,8 @@
 // World Forge — low-level storage (IndexedDB, saved inside the browser on this device)
 
 const DB_NAME = 'world-forge';
-const DB_VERSION = 1;
-export const STORES = ['worlds', 'books', 'entries', 'deletions', 'meta'];
+const DB_VERSION = 2;
+export const STORES = ['worlds', 'books', 'entries', 'volumes', 'chapters', 'scenes', 'events', 'maps', 'relations', 'deletions', 'meta'];
 
 let dbPromise = null;
 
@@ -18,6 +18,7 @@ function open() {
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
+      req.onblocked = () => reject(new Error('World Forge is updating. Close any other World Forge windows or tabs, then reload.'));
     });
   }
   return dbPromise;
@@ -36,3 +37,4 @@ function run(store, mode, fn) {
 export const getAll = store => run(store, 'readonly', s => s.getAll());
 export const put = (store, value) => run(store, 'readwrite', s => s.put(value));
 export const del = (store, id) => run(store, 'readwrite', s => s.delete(id));
+export const get = (store, id) => run(store, 'readonly', s => s.get(id));

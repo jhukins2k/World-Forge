@@ -1,18 +1,19 @@
 // World Forge — offline support. Serves the app from a local cache, refreshing it in the background.
 // Bump CACHE whenever any app file changes, so everyone gets the new version.
-const CACHE = 'world-forge-v0.1.0';
+const CACHE = 'world-forge-v0.2.0';
 const APP_FILES = [
   './',
   'index.html',
   'manifest.webmanifest',
   'style.css',
-  'app.js', 'config.js', 'db.js', 'store.js', 'ui.js', 'fields.js', 'mentions.js', 'templates.js',
-  'library.js', 'book.js', 'template.js', 'questions.js', 'settings.js', 'coming.js',
+  'app.js', 'config.js', 'db.js', 'store.js', 'ui.js', 'fields.js', 'mentions.js', 'templates.js', 'pickers.js', 'chrono.js',
+  'library.js', 'book.js', 'template.js', 'questions.js', 'settings.js',
+  'manuscript.js', 'chronicle.js', 'atlas.js', 'lineage.js', 'sync.js',
   'favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png',
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(APP_FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(APP_FILES.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -28,7 +29,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
-  if (url.origin !== self.location.origin && !isFont) return;
+  if (url.origin !== self.location.origin && !isFont) return; // GitHub sync calls always go to the network
 
   e.respondWith(caches.open(CACHE).then(async cache => {
     const cached = await cache.match(req, { ignoreSearch: true });

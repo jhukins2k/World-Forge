@@ -9,17 +9,25 @@ import * as book from './book.js';
 import * as template from './template.js';
 import * as questions from './questions.js';
 import * as settings from './settings.js';
-import * as coming from './coming.js';
+import * as manuscript from './manuscript.js';
+import * as chronicle from './chronicle.js';
+import * as atlas from './atlas.js';
+import * as lineage from './lineage.js';
+import * as sync from './sync.js';
 
 const app = document.getElementById('app');
 
 function parse() {
   const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
   if (p[0] === 'settings') return [settings, {}];
+  if (p[0] === 'sync') return [sync, { auto: p[1] === 'now' }];
   if (p[0] === 'w' && p[1]) {
     const worldId = p[1];
     if (p[2] === 'questions') return [questions, { worldId }];
-    if (p[2] === 'tool' && p[3]) return [coming, { worldId, tool: p[3] }];
+    if (p[2] === 'manuscript') return [manuscript, { worldId, chapterId: p[3] === 'c' ? p[4] : null }];
+    if (p[2] === 'chronicle') return [chronicle, { worldId, eventId: p[3] === 'e' ? p[4] : null }];
+    if (p[2] === 'atlas') return [atlas, { worldId, mapId: p[3] === 'm' ? p[4] : null }];
+    if (p[2] === 'lineage') return [lineage, { worldId, mode: p[3] || 'tree', personId: p[4] || null }];
     if (p[2] === 'b' && p[3]) {
       const bookId = p[3];
       if (p[4] === 'template') return [template, { worldId, bookId }];
@@ -102,15 +110,23 @@ installBtn.addEventListener('click', async () => {
 });
 window.addEventListener('appinstalled', () => { installState.installed = true; installBtn.hidden = true; });
 
-onSaved(() => { const s = $('#save-status'); if (s) s.textContent = 'Saved on this device'; });
+onSaved(() => { const s = $('#save-status'); if (s) s.textContent = 'Saved on this device'; sync.refreshHeader(); });
 
 // ---------- start ----------
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('sw.js').catch(() => {});
+  // When a new version finishes installing, reload once so every file comes from the same version.
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    location.reload();
+  });
 }
 
-load().then(route).catch(err => {
+load().then(() => { route(); sync.refreshHeader(); sync.startupReminder(); }).catch(err => {
   app.innerHTML = `<div class="page"><h1 class="h1">World Forge couldn't open its storage</h1>
     <p class="lede">${esc(err?.message || err)}</p>
     <p class="muted">Private or incognito windows sometimes block storage. Try a normal window.</p></div>`;

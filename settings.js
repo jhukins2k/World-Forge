@@ -14,9 +14,15 @@ export async function render(root) {
     <div class="page-head"><div><h1 class="h1">Settings</h1>
       <p class="lede">${state.worlds.size} ${state.worlds.size === 1 ? 'world' : 'worlds'}, ${state.entries.size} entries, saved in this browser on this device.</p></div></div>
 
+    <section class="panel" aria-labelledby="gs-h">
+      <h2 class="panel-h" id="gs-h">GitHub sync</h2>
+      <p class="muted">Keep the same Library on every device, with a private copy of your worlds on GitHub.</p>
+      <a class="btn ghost" href="#/sync">Open GitHub sync</a>
+    </section>
+
     <section class="panel" aria-labelledby="bk-h">
       <h2 class="panel-h" id="bk-h">Backups</h2>
-      <p class="muted">Until GitHub sync is added, a backup file is the only copy of your work outside this browser. Download one every so often and keep it somewhere safe.</p>
+      <p class="muted">A backup file is a complete copy of your Library in one file. Even with sync on, download one now and then and keep it somewhere safe.</p>
       <div class="btn-row">
         <button type="button" class="btn primary" data-act="export">Download a full backup</button>
         <label class="btn ghost file-btn">Restore or import a backup…
@@ -44,7 +50,7 @@ export async function render(root) {
 
     <section class="panel" aria-labelledby="ab-h">
       <h2 class="panel-h" id="ab-h">About</h2>
-      <p class="muted">World Forge ${esc(APP_VERSION)} · Stage 1 of 5. Coming next: Manuscript (chapters and scenes), Chronicle (timeline), GitHub sync, Atlas and Lineage.</p>
+      <p class="muted">World Forge ${esc(APP_VERSION)}. Everything is stored in this browser; GitHub sync keeps your devices in step.</p>
     </section>
   </div>`;
 
@@ -71,7 +77,9 @@ export async function render(root) {
     try {
       const data = JSON.parse(await e.target.files[0].text());
       const c = await importData(data);
-      toast(`Imported ${c.worlds} ${c.worlds === 1 ? 'world' : 'worlds'}, ${c.books} books and ${c.entries} entries.`);
+      const parts = [['worlds', 'world'], ['books', 'book'], ['entries', 'entry'], ['chapters', 'chapter'], ['scenes', 'scene'], ['events', 'event'], ['maps', 'map']]
+        .filter(([k]) => c[k]).map(([k, one]) => `${c[k]} ${c[k] === 1 ? one : k}`);
+      toast(`Imported ${parts.join(', ') || 'nothing new'}.`);
       location.hash = '#/';
     } catch (err) {
       toast(err instanceof SyntaxError ? 'That file isn\'t valid JSON.' : err.message);

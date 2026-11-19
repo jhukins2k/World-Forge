@@ -5,10 +5,10 @@ import { state, uid, worldsSorted, booksOf, entriesOfBook, entriesOfWorld, saveW
 import { PACK_LIST, buildPack } from './templates.js';
 
 export const TOOLS = [
-  { key: 'manuscript', name: 'Manuscript', icon: 'quill', stage: 2, about: 'Your books, chapters and scenes, with the characters, places and items in each.' },
-  { key: 'atlas', name: 'Atlas', icon: 'map', stage: 5, about: 'Upload maps and drop pins that link to your Places.' },
-  { key: 'lineage', name: 'Lineage', icon: 'tree', stage: 5, about: 'Family trees and a web of relationships, drawn from the links you already make.' },
-  { key: 'chronicle', name: 'Chronicle', icon: 'hourglass', stage: 3, about: 'A zoomable timeline from the first recorded event to the last.' },
+  { key: 'manuscript', name: 'Manuscript', icon: 'quill' },
+  { key: 'atlas', name: 'Atlas', icon: 'map' },
+  { key: 'lineage', name: 'Lineage', icon: 'tree' },
+  { key: 'chronicle', name: 'Chronicle', icon: 'hourglass' },
 ];
 
 function spine(book, count) {
@@ -25,7 +25,7 @@ function spine(book, count) {
 
 function toolSpine(worldId, t, i) {
   const h = [286, 270, 280, 264][i];
-  return `<a class="spine tool" href="#/w/${worldId}/tool/${t.key}" style="height:${h}px" aria-label="${t.name} (coming in stage ${t.stage})">
+  return `<a class="spine tool" href="#/w/${worldId}/${t.key}" style="height:${h}px" aria-label="${t.name}">
     <span class="band thick" aria-hidden="true"></span>
     <span class="spine-title">${t.name}</span>
     <span class="spine-foot icon">${icons[t.icon]}</span>

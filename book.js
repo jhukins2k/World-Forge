@@ -1,7 +1,8 @@
 // World Forge — an open book: its table of contents, and an entry page (reading or editing).
 
 import { esc, $, safeColor, safeImage, icons, promptDialog, confirmDialog, readImage, toast } from './ui.js';
-import { state, uid, entriesOfBook, entryHref, saveEntry, deleteEntry, linkedFrom, mentionedIn } from './store.js';
+import { state, uid, entriesOfBook, entryHref, saveEntry, deleteEntry, linkedFrom, mentionedIn, appearsIn, eventsWith, mapsOf, chapterNumber } from './store.js';
+import { formatDate, toDays } from './chrono.js';
 import { renderFieldsView, renderFieldsEdit, fieldEditInner, plainText, norm, toEditable, fromEditable } from './fields.js';
 import { attachMentions } from './mentions.js';
 
@@ -55,6 +56,30 @@ function landing(book) {
   </div>`;
 }
 
+function appearsHtml(entry) {
+  const list = appearsIn(entry);
+  if (!list.length) return '';
+  return `<div class="side-card"><h2 class="side-h">Appears in · ${list.length} ${list.length === 1 ? 'chapter' : 'chapters'}</h2>
+    <div class="ch-chips">${list.map(({ ch, pov }) => `<a class="ch-chip ${pov ? 'pov' : ''}" href="#/w/${entry.worldId}/manuscript/c/${ch.id}" title="${esc(ch.title || '')}${pov ? ' (POV)' : ''}">${chapterNumber(ch)}</a>`).join('')}</div>
+    ${list.some(x => x.pov) ? '<p class="muted small">Ringed: told from their point of view</p>' : ''}</div>`;
+}
+
+function eventsHtml(entry) {
+  const world = state.worlds.get(entry.worldId);
+  const evs = eventsWith(entry).map(ev => ({ ev, d: toDays(ev.start, world) })).sort((a, b) => (a.d ?? Infinity) - (b.d ?? Infinity));
+  if (!evs.length) return '';
+  return `<div class="side-card"><h2 class="side-h">On the timeline · ${evs.length}</h2><ul class="side-list">
+    ${evs.slice(0, 8).map(({ ev }) => `<li><a href="#/w/${entry.worldId}/chronicle/e/${ev.id}">${esc(ev.title)}</a><span class="muted"> · ${esc(formatDate(ev.start, world) || 'undated')}</span></li>`).join('')}
+    </ul>${evs.length > 8 ? `<a class="small" href="#/w/${entry.worldId}/chronicle">See all in the Chronicle</a>` : ''}</div>`;
+}
+
+function mapsHtml(entry) {
+  const maps = mapsOf(entry.worldId).filter(m => (m.pins || []).some(p => p.entryId === entry.id));
+  if (!maps.length) return '';
+  return `<div class="side-card"><h2 class="side-h">On the map</h2><ul class="side-list">
+    ${maps.map(m => `<li><a href="#/w/${entry.worldId}/atlas/m/${m.id}">${esc(m.name)}</a></li>`).join('')}</ul></div>`;
+}
+
 function sidebar(entry) {
   const from = linkedFrom(entry);
   const ment = mentionedIn(entry).filter(m => !from.some(f => f.entry.id === m.id));
@@ -66,6 +91,9 @@ function sidebar(entry) {
         <span class="muted"> · ${esc(l.field.label)}${l.note ? ` · ${esc(l.note)}` : ''}</span></li>`).join('')}</ul>`
         : '<p class="muted small">Nothing links here yet. When another entry links to this one, it shows up here.</p>'}
     </div>
+    ${appearsHtml(entry)}
+    ${eventsHtml(entry)}
+    ${mapsHtml(entry)}
     ${ment.length ? `<div class="side-card"><h2 class="side-h">Mentioned in</h2>
       <div class="chips">${ment.map(m => `<a class="chip dark" href="${entryHref(m)}">${esc(m.name)}</a>`).join('')}</div></div>` : ''}
     <div class="side-card">
