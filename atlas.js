@@ -15,16 +15,20 @@ function entryOptions(worldId, selected = '') {
 // ---------- list of maps ----------
 
 function list(root, world) {
-  const maps = mapsOf(world.id);
+  const all = mapsOf(world.id);
+  const maps = all.filter(m => !m.parentId);
+  const zoomIns = id => all.filter(m => m.parentId === id).length;
   root.innerHTML = `<div class="page">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="#/">Library</a><span aria-hidden="true">›</span><span>${esc(world.name)}</span><span aria-hidden="true">›</span><span aria-current="page">Atlas</span></nav>
     <div class="page-head"><div><h1 class="h1">Atlas</h1>
-      <p class="lede">${maps.length ? `${maps.length} ${maps.length === 1 ? 'map' : 'maps'}` : 'Upload any map image, even a photo of a hand-drawn one, then pin your places to it.'}</p></div>
+      <p class="lede">${maps.length ? `${maps.length} ${maps.length === 1 ? 'map' : 'maps'}` : 'Forge a world map with terrain you paint and shape, or upload any map image, even a photo of a hand-drawn one.'}</p></div>
       <button type="button" class="btn primary" data-act="new">+ New map</button></div>
     ${maps.length ? `<div class="map-cards">${maps.map(m => `<a class="map-card" href="#/w/${world.id}/atlas/m/${m.id}">
-        <img src="${safeImage(m.image)}" alt="">
+        ${safeImage(m.type === 'forge' ? m.thumb : m.image) ? `<img src="${safeImage(m.type === 'forge' ? m.thumb : m.image)}" alt="">` : '<span class="map-card-ph">Forged map</span>'}
         <span class="map-card-name">${esc(m.name)}</span>
-        <span class="map-card-sub">${(m.pins || []).length} pins · ${(m.routes || []).length} routes</span></a>`).join('')}</div>`
+        <span class="map-card-sub">${m.type === 'forge'
+          ? `Forged · ${m.size} × ${m.size}${zoomIns(m.id) ? ` · ${zoomIns(m.id)} zoom-in ${zoomIns(m.id) === 1 ? 'map' : 'maps'}` : ''} · ${(m.pins || []).length} pins`
+          : `Image · ${(m.pins || []).length} pins · ${(m.routes || []).length} routes`}</span></a>`).join('')}</div>`
       : '<div class="empty-card"><p>No maps yet.</p></div>'}
   </div>`;
   root.onclick = async e => {
@@ -36,13 +40,41 @@ function list(root, world) {
 
 async function newMapDialog(world) {
   const r = await openDialog({
-    title: 'New map', submitLabel: 'Add map',
+    title: 'New map', submitLabel: 'Create map',
     body: `<label class="flabel" for="nm-name">Name</label>
-      <input class="inp" id="nm-name" name="name" required maxlength="60" placeholder="e.g. The Elderreach">
-      <label class="flabel" for="nm-file">Map image</label>
-      <input class="inp" id="nm-file" name="file" type="file" accept="image/*" required>`,
+      <input class="inp" id="nm-name" name="name" required maxlength="60" placeholder="e.g. The Known World">
+      <fieldset class="cfg"><legend class="flabel">Kind of map</legend>
+        <label class="check"><input type="radio" name="kind" value="forge" checked> Forge it: a landscape you shape and paint</label>
+        <label class="check"><input type="radio" name="kind" value="image"> Upload an image of a map</label>
+      </fieldset>
+      <div data-kind="forge">
+        <label class="flabel" for="nm-shape">Starting shape</label>
+        <select class="inp" id="nm-shape" name="shape"><option value="continent">Continent surrounded by sea</option><option value="islands">Islands</option><option value="inland">Inland (land to the edges)</option></select>
+        <label class="flabel" for="nm-size">Size</label>
+        <select class="inp" id="nm-size" name="size"><option value="192">Small (192 × 192)</option><option value="256" selected>Standard (256 × 256)</option><option value="384">Large (384 × 384, needs a strong computer)</option></select>
+        <p class="hint">You can zoom into any part later to make detailed maps of regions and cities.</p>
+      </div>
+      <div data-kind="image" hidden>
+        <label class="flabel" for="nm-file">Map image</label>
+        <input class="inp" id="nm-file" name="file" type="file" accept="image/*">
+      </div>`,
+    onOpen: d => d.addEventListener('change', () => {
+      const k = d.querySelector('input[name="kind"]:checked').value;
+      d.querySelectorAll('[data-kind]').forEach(el => { el.hidden = el.dataset.kind !== k; });
+    }),
   });
-  if (!r || !r.file || !r.file.size) return null;
+  if (!r) return null;
+  if (r.kind === 'forge') {
+    try {
+      toast('Forging your landscape…');
+      const engine = await import('./engine/index.js');
+      const rec = await engine.createForgeMap({ id: uid(), worldId: world.id, name: r.name.trim(), size: Number(r.size) || 256,
+        seed: Math.floor(Math.random() * 1e9), gen: { shape: r.shape }, order: mapsOf(world.id).length });
+      await saveRec('maps', rec);
+      return rec;
+    } catch (err) { toast(engineError(err)); return null; }
+  }
+  if (!r.file || !r.file.size) { toast('Choose an image file for the map.'); return null; }
   try {
     const image = await readImage(r.file, 2400);
     const dims = await new Promise(res => { const i = new Image(); i.onload = () => res([i.naturalWidth, i.naturalHeight]); i.src = image; });
@@ -50,6 +82,53 @@ async function newMapDialog(world) {
     await saveRec('maps', m);
     return m;
   } catch (err) { toast(err.message); return null; }
+}
+
+function engineError(err) {
+  return /import|module|fetch/i.test(String(err?.message || err))
+    ? 'The map engine is not built yet. Check that the GitHub build finished (Actions tab), then reload.'
+    : (err?.message || String(err));
+}
+
+// ---------- forged maps ----------
+
+async function forgeView(root, world, map) {
+  root.innerHTML = '<div class="page wide"><p class="muted">Unrolling the map…</p></div>';
+  let engine;
+  try { engine = await import('./engine/index.js'); }
+  catch (err) {
+    root.innerHTML = `<div class="page"><h1 class="h1">${esc(map.name)}</h1><p class="lede">${esc(engineError(err))}</p><p><a href="#/w/${world.id}/atlas">Back to the Atlas</a></p></div>`;
+    return;
+  }
+  const ancestors = [];
+  for (let p = state.maps.get(map.parentId); p; p = state.maps.get(p.parentId)) ancestors.unshift({ id: p.id, name: p.name });
+  const entries = booksOf(world.id).flatMap(b => entriesOfBook(b.id).map(e => ({ id: e.id, name: e.name, book: b.name, color: safeColor(b.color) })));
+  const removeTree = async id => { for (const c of mapsOf(world.id).filter(m => m.parentId === id)) await removeTree(c.id); await deleteRec('maps', id); };
+  const zoomFrom = sessionStorage.getItem('wf-map-from'); sessionStorage.removeItem('wf-map-from');
+  const host = document.createElement('div');
+  host.className = 'fm-host';
+  root.replaceChildren(host);
+  const handle = await engine.mountForgeMap(host, {
+    record: structuredClone(map),
+    worldName: world.name,
+    atlasHref: `#/w/${world.id}/atlas`,
+    entries,
+    entryHref: id => { const e = state.entries.get(id); return e ? entryHref(e) : '#'; },
+    ancestors,
+    children: () => mapsOf(world.id).filter(m => m.parentId === map.id),
+    save: rec => saveRec('maps', rec).then(() => {}),
+    createChild: rec => saveRec('maps', rec).then(() => {}),
+    removeChild: id => removeTree(id),
+    open: id => { location.hash = `#/w/${world.id}/atlas/m/${id}`; },
+    uid,
+    dialogs: {
+      confirm: (msg, o = {}) => confirmDialog(msg, o),
+      form: async (title, body, submitLabel = 'Save') => { const r = await openDialog({ title, body, submitLabel }); if (!r) return null; const { _all, ...rest } = r; return rest; },
+      toast,
+    },
+    zoomFromChild: zoomFrom,
+  });
+  window.addEventListener('hashchange', () => handle.destroy(), { once: true });
 }
 
 // ---------- one map ----------
@@ -299,7 +378,7 @@ export function render(root, { worldId, mapId }) {
   if (mapId) {
     const map = state.maps.get(mapId);
     if (!map) { root.innerHTML = `<div class="page"><h1 class="h1">Map not found</h1><p><a href="#/w/${worldId}/atlas">Back to the Atlas</a></p></div>`; return; }
-    return mapView(root, world, map);
+    return map.type === 'forge' ? forgeView(root, world, map) : mapView(root, world, map);
   }
   list(root, world);
 }

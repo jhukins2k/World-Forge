@@ -34,7 +34,7 @@ export function toast(msg) {
 }
 
 // A modal dialog with a form. Resolves to the form values, or null if cancelled.
-export function openDialog({ title, body, submitLabel = 'Save', cancelLabel = 'Cancel', danger = false }) {
+export function openDialog({ title, body, submitLabel = 'Save', cancelLabel = 'Cancel', danger = false, onOpen = null }) {
   return new Promise(resolve => {
     const d = document.createElement('dialog');
     d.className = 'dlg';
@@ -60,6 +60,7 @@ export function openDialog({ title, body, submitLabel = 'Save', cancelLabel = 'C
     });
     d.addEventListener('close', () => { d.remove(); resolve(result); });
     d.showModal();
+    if (onOpen) onOpen(d);
     const first = d.querySelector('.dlg-body input, .dlg-body select, .dlg-body textarea');
     if (first) first.focus();
   });

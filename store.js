@@ -189,14 +189,18 @@ export async function importData(data) {
     throw new Error('This file is not a World Forge backup.');
   }
   const counts = Object.fromEntries(KINDS.map(k => [k, 0]));
+  let skipped = 0;
   for (const k of KINDS) {
     for (const r of data[k] || []) {
       if (!r || typeof r.id !== 'string') continue;
-      if (k !== 'worlds' && r.worldId && !state.worlds.has(r.worldId) && !data.worlds.some(w => w.id === r.worldId)) continue;
+      if (k !== 'worlds' && r.worldId && !state.worlds.has(r.worldId) && !data.worlds.some(w => w.id === r.worldId)) { skipped++; continue; }
       await putRaw(k, r);
       counts[k]++;
     }
   }
   saved();
+  if (skipped && !Object.values(counts).some(Boolean)) {
+    throw new Error('This file adds to a world that isn\'t in this Library yet. Import that world\'s main file first (or sync it down from GitHub), then import this one.');
+  }
   return counts;
 }

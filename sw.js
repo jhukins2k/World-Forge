@@ -1,7 +1,7 @@
 // World Forge — offline support. Each version's files are saved together as one set, and the app is
 // always served from a complete set, so old and new files never mix. A new version arrives only when
 // this file changes: bump CACHE (and APP_VERSION in config.js) with every release.
-const CACHE = 'world-forge-v0.2.1';
+const CACHE = 'world-forge-v0.3.0';
 const FONTS = 'world-forge-fonts';
 const APP_FILES = [
   './',
@@ -11,6 +11,8 @@ const APP_FILES = [
   'app.js', 'config.js', 'db.js', 'store.js', 'ui.js', 'fields.js', 'mentions.js', 'templates.js', 'pickers.js', 'chrono.js',
   'library.js', 'book.js', 'template.js', 'questions.js', 'settings.js',
   'manuscript.js', 'chronicle.js', 'atlas.js', 'lineage.js', 'sync.js',
+  'engine/index.js', 'engine/editor.js', 'engine/state.js', 'engine/renderer.js', 'engine/camera.js', 'engine/terrain.js',
+  'engine/models.js', 'engine/noise.js', 'engine/codec.js', 'engine/types.js',
   'favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png',
 ];
 

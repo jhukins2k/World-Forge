@@ -13,14 +13,14 @@ Runs entirely in the browser and installs as an app. Your worlds are saved on yo
 - **`@` mentions** in long text, with automatic “Linked from”, “Mentioned in”, “Appears in”, “On the timeline” and “On the map” lists
 - **Manuscript:** books → chapters → scenes, auto-numbered, with each chapter's characters, places and items gathered from its scenes, plus a “who appears where” grid
 - **Chronicle:** a timeline with custom calendars; exact, approximate and relative dates; spans; lanes; folded gaps; and an “at this moment” snapshot
-- **Atlas:** map images with pins linked to entries, and routes
+- **Atlas:** forged maps (generated terrain you sculpt and paint, stacked-pixel trees and buildings, roads, rivers, walls, regions, pins, sun and shadows, top-down and isometric views, and zoom-in maps from continent down to city), plus uploaded map images with pins and routes
 - **Lineage:** family trees, plus a relationship web drawn from every link
 - **Open Questions,** search, backups, offline use, installable
 - **GitHub sync** to a private repository, with side-by-side conflict choices
 
 ## Files
 
-All files sit in one folder so they can be uploaded from a phone.
+Most files sit in one folder so they can be uploaded from a phone; the map engine has its own folders.
 
 | File | What it is |
 | --- | --- |
@@ -36,3 +36,11 @@ All files sit in one folder so they can be uploaded from a phone.
 | `sync.js` | GitHub sync |
 | `ui.js`, `config.js` | Shared helpers and the version number |
 | `sw.js` | Offline support. Bump `CACHE` (and `APP_VERSION` in `config.js`) with each release |
+| `src/*.ts` | The map engine, in TypeScript |
+| `engine/*.js` | The map engine compiled to JavaScript. Rebuilt automatically by GitHub; don't edit these |
+| `tsconfig.json` | TypeScript settings |
+| `.github/workflows/pages.yml` | Tells GitHub to compile the map engine and publish the site on every commit |
+
+## Building
+
+Whenever something is committed to `main`, GitHub Actions compiles `src/` into `engine/` and publishes the site. For this, **Settings → Pages → Source** must be set to **GitHub Actions**. To build on your own computer instead: `npx -p typescript@7.0.2 tsc -p .`
