@@ -646,3 +646,9 @@ textarea.inp { resize: vertical; line-height: 1.5; }
   .fm-host { height: calc(100dvh - 110px); }
 }
 .fm-scale[hidden] { display: none; }
+
+/* ---------- footer ---------- */
+
+.site-foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; padding: 18px 16px 28px; border-top: 1px solid var(--line); background: var(--bg-deep); color: var(--muted); font-size: 15px; }
+.site-foot a { color: var(--ember); }
+.site-foot a:hover { color: var(--brass-bright); }

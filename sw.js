@@ -1,7 +1,7 @@
 // World Forge — offline support. Each version's files are saved together as one set, and the app is
 // always served from a complete set, so old and new files never mix. A new version arrives only when
 // this file changes: bump CACHE (and APP_VERSION in config.js) with every release.
-const CACHE = 'world-forge-v0.3.0';
+const CACHE = 'world-forge-v0.3.2';
 const FONTS = 'world-forge-fonts';
 const APP_FILES = [
   './',
@@ -50,7 +50,12 @@ self.addEventListener('fetch', e => {
   e.respondWith(caches.open(CACHE).then(async c => {
     const hit = await c.match(req, { ignoreSearch: true });
     if (hit) return hit;
-    if (req.mode === 'navigate') return (await c.match('index.html')) || fetch(req);
-    return fetch(req);
+    // Other pages on the site (like skyrift.html) come straight from GitHub, so edits show up right away.
+    // World Forge itself is only used as a stand-in when you're offline.
+    try { return await fetch(req); }
+    catch (err) {
+      if (req.mode === 'navigate' && url.pathname.endsWith('/')) return (await c.match('index.html')) || Response.error();
+      throw err;
+    }
   }));
 });
